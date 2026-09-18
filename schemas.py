@@ -1,19 +1,10 @@
 from pydantic import BaseModel, field_validator
 from typing import List
 
+
 class AnalyzeRequest(BaseModel):
-    resume: str
     job_description: str
-
-    @field_validator("resume")
-    @classmethod
-    def resume_not_empty(cls, v):
-        if len(v.strip()) < 100:
-            raise ValueError(
-                "Resume must be at least 100 characters"
-            )
-        return v
-
+    
     @field_validator("job_description")
     @classmethod
     def job_description_not_empty(cls, v):

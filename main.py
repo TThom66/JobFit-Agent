@@ -1,8 +1,10 @@
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from agent import run_analysis
 import schemas
+import fitz
+import io
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,22 +35,45 @@ def health_check():
     return {"status": "ok"}
 
 @app.post("/analyze", response_model=schemas.AnalyzeResponse)
-def analyze(request: schemas.AnalyzeRequest):
-    # Placeholder - agent logic goes here
-    return {
-        "match_score": 0,
-        "matched_requirements": [],
-        "missing_requirements": [],
-        "company_research": "",
-        "cover_letter": "",
-        "resume_suggestions": []
-    }
+async def analyze(
+    resume: UploadFile = File(..., description="Resume as PDF"),
+    job_description: str = Form(..., description="Job description text")
+):
+    # Validate file type
+    if not resume.filename.endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Resume must be a PDF file"
+        )
 
-@app.post("/analyze", response_model=schemas.AnalyzeResponse)
-def analyze(request: schemas.AnalyzeRequest):
-    logger.info("Analysis request received")
+    # Extract text from PDF
     try:
-        result = run_analysis(request.resume, request.job_description)
+        contents = await resume.read()
+        pdf = fitz.open(stream=contents, filetype="pdf")
+        resume_text = ""
+        for page in pdf:
+            resume_text += page.get_text()
+        pdf.close()
+
+        if len(resume_text.strip()) < 100:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract enough text from PDF"
+            )
+
+        logger.info(f"Extracted {len(resume_text)} characters from resume")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF extraction failed: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to read PDF file"
+        )
+
+    # Run analysis
+    try:
+        result = run_analysis(resume_text, job_description)
         return result
     except Exception as e:
         logger.error(f"Analysis failed: {e}")
