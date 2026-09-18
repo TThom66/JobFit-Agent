@@ -1,6 +1,7 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from agent import run_analysis
 import schemas
 
 logging.basicConfig(
@@ -42,3 +43,16 @@ def analyze(request: schemas.AnalyzeRequest):
         "cover_letter": "",
         "resume_suggestions": []
     }
+
+@app.post("/analyze", response_model=schemas.AnalyzeResponse)
+def analyze(request: schemas.AnalyzeRequest):
+    logger.info("Analysis request received")
+    try:
+        result = run_analysis(request.resume, request.job_description)
+        return result
+    except Exception as e:
+        logger.error(f"Analysis failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis service temporarily unavailable"
+        )
