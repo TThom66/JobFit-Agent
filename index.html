@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobFit Agent</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 
+                'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #555;
+        }
+
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover { background: #1d4ed8; }
+        button:disabled { 
+            background: #93c5fd; 
+            cursor: not-allowed; 
+        }
+
+        .progress {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .progress-step {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            background: #f0f9ff;
+            border-left: 3px solid #2563eb;
+            font-size: 0.9rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .results { display: none; }
+
+        .score-bar {
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 0.5rem 0 1rem;
+        }
+
+        .score-fill {
+            height: 100%;
+            border-radius: 12px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            padding-left: 0.75rem;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .score-high { background: #16a34a; }
+        .score-mid { background: #d97706; }
+        .score-low { background: #dc2626; }
+
+        .requirements-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .req-list {
+            padding: 1rem;
+            border-radius: 6px;
+        }
+
+        .req-matched { background: #f0fdf4; }
+        .req-missing { background: #fef2f2; }
+
+        .req-list h3 {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .req-matched h3 { color: #16a34a; }
+        .req-missing h3 { color: #dc2626; }
+
+        .req-item {
+            font-size: 0.85rem;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            line-height: 1.4;
+        }
+
+        .cover-letter {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 6px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            font-size: 0.95rem;
+        }
+
+        .suggestion-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #fffbeb;
+            border-left: 3px solid #d97706;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .company-research {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        .copy-btn {
+            width: auto;
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-top: 0.75rem;
+            background: #6b7280;
+        }
+
+        .copy-btn:hover { background: #4b5563; }
+
+        .error {
+            padding: 1rem;
+            background: #fef2f2;
+            border-left: 4px solid #dc2626;
+            border-radius: 4px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        @media (max-width: 600px) {
+            .requirements-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>JobFit Agent</h1>
+    <p class="subtitle">
+        Upload your resume and paste a job description to get 
+        an instant fit analysis, tailored cover letter, and 
+        resume suggestions.
+    </p>
+
+    <!-- Input Card -->
+    <div class="card">
+        <h2>Analyze a Job</h2>
+        <label style="font-size:0.9rem; color:#555; 
+            display:block; margin-bottom:0.5rem;">
+            Resume (PDF)
+        </label>
+        <input type="file" id="resume-file" accept=".pdf">
+        <label style="font-size:0.9rem; color:#555; 
+            display:block; margin-bottom:0.5rem;">
+            Job Description
+        </label>
+        <textarea id="job-description" 
+            placeholder="Paste the full job description here...">
+        </textarea>
+        <button id="analyze-btn" onclick="startAnalysis()">
+            Analyze Job Fit
+        </button>
+        <div class="error" id="error-box"></div>
+
+        <!-- Progress -->
+        <div class="progress" id="progress-box">
+            <div style="font-size:0.9rem; color:#555; 
+                margin-bottom:0.5rem;">
+                Agent working...
+            </div>
+            <div id="progress-steps"></div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="results" id="results-box">
+
+        <!-- Match Score -->
+        <div class="card">
+            <h2>Match Score</h2>
+            <div class="score-bar">
+                <div class="score-fill" id="score-fill">0%</div>
+            </div>
+            <p id="score-description" style="font-size:0.9rem; 
+                color:#666;"></p>
+        </div>
+
+        <!-- Requirements -->
+        <div class="card">
+            <h2>Requirements Analysis</h2>
+            <div class="requirements-grid">
+                <div class="req-list req-matched">
+                    <h3>✓ You Meet These</h3>
+                    <div id="matched-list"></div>
+                </div>
+                <div class="req-list req-missing">
+                    <h3>✗ Gaps to Address</h3>
+                    <div id="missing-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Research -->
+        <div class="card">
+            <h2>Company Research</h2>
+            <div class="company-research" id="company-research">
+            </div>
+        </div>
+
+        <!-- Cover Letter -->
+        <div class="card">
+            <h2>Tailored Cover Letter</h2>
+            <div class="cover-letter" id="cover-letter"></div>
+            <button class="copy-btn" 
+                onclick="copyToClipboard('cover-letter')">
+                Copy Cover Letter
+            </button>
+        </div>
+
+        <!-- Resume Suggestions -->
+        <div class="card">
+            <h2>Resume Suggestions</h2>
+            <div id="suggestions-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API = 'http://localhost:8000';
+
+    function showError(message) {
+        const box = document.getElementById('error-box');
+        box.textContent = message;
+        box.style.display = 'block';
+    }
+
+    function hideError() {
+        document.getElementById('error-box').style.display = 'none';
+    }
+
+    function addProgressStep(message) {
+        const steps = document.getElementById('progress-steps');
+        const step = document.createElement('div');
+        step.className = 'progress-step';
+        step.textContent = '⟳ ' + message;
+        steps.appendChild(step);
+        step.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function completeProgressStep(message) {
+        const steps = document.getElementById('progress-steps');
+        const lastStep = steps.lastElementChild;
+        if (lastStep) {
+            lastStep.textContent = '✓ ' + message;
+            lastStep.style.borderLeftColor = '#16a34a';
+            lastStep.style.background = '#f0fdf4';
+        }
+    }
+
+    function renderResults(data) {
+        // Score
+        const score = data.match_score;
+        const fill = document.getElementById('score-fill');
+        fill.style.width = score + '%';
+        fill.textContent = score + '%';
+        fill.className = 'score-fill ' + (
+            score >= 70 ? 'score-high' : 
+            score >= 40 ? 'score-mid' : 'score-low'
+        );
+
+        const desc = document.getElementById('score-description');
+        if (score >= 70) {
+            desc.textContent = 'Strong match — worth applying with confidence.';
+        } else if (score >= 40) {
+            desc.textContent = 'Partial match — address the gaps in your cover letter.';
+        } else {
+            desc.textContent = 'Low match — consider whether this role fits your current profile.';
+        }
+
+        // Requirements
+        const matchedList = document.getElementById('matched-list');
+        matchedList.innerHTML = data.matched_requirements
+            .map(r => `<div class="req-item">${r}</div>`)
+            .join('');
+
+        const missingList = document.getElementById('missing-list');
+        missingList.innerHTML = data.missing_requirements
+            .map(r => `<div class="req-item">${r}</div>`)
+            .join('');
+
+        // Company research
+        document.getElementById('company-research').textContent = 
+            data.company_research;
+
+        // Cover letter
+        document.getElementById('cover-letter').textContent = 
+            data.cover_letter;
+
+        // Suggestions
+        document.getElementById('suggestions-list').innerHTML = 
+            data.resume_suggestions
+                .map(s => `<div class="suggestion-item">${s}</div>`)
+                .join('');
+
+        // Show results
+        document.getElementById('results-box').style.display = 'block';
+        document.getElementById('results-box')
+            .scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function startAnalysis() {
+        hideError();
+        document.getElementById('results-box').style.display = 'none';
+        document.getElementById('progress-steps').innerHTML = '';
+
+        const file = document.getElementById('resume-file').files[0];
+        const jobDesc = document.getElementById('job-description')
+            .value.trim();
+
+        if (!file) {
+            showError('Please upload your resume as a PDF.');
+            return;
+        }
+        if (!jobDesc) {
+            showError('Please paste a job description.');
+            return;
+        }
+
+        const btn = document.getElementById('analyze-btn');
+        btn.disabled = true;
+        btn.textContent = 'Analyzing...';
+
+        const progressBox = document.getElementById('progress-box');
+        progressBox.style.display = 'block';
+
+        const formData = new FormData();
+        formData.append('resume', file);
+        formData.append('job_description', jobDesc);
+
+        try {
+            const response = await fetch(`${API}/analyze/stream`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let lastMessage = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop();
+
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    
+                    try {
+                        const event = JSON.parse(line.slice(6));
+                        
+                        if (event.type === 'progress') {
+                            if (lastMessage) {
+                                completeProgressStep(lastMessage);
+                            }
+                            addProgressStep(event.message);
+                            lastMessage = event.message;
+                        } else if (event.type === 'result') {
+                            if (lastMessage) {
+                                completeProgressStep(lastMessage);
+                            }
+                            renderResults(event.data);
+                        } else if (event.type === 'error') {
+                            showError(event.message);
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse SSE event:', e);
+                    }
+                }
+            }
+        } catch (err) {
+            showError('Failed to connect to server. ' + err.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Analyze Job Fit';
+            progressBox.style.display = 'none';
+        }
+    }
+
+    function copyToClipboard(elementId) {
+        const text = document.getElementById(elementId).textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target;
+            btn.textContent = 'Copied!';
+            setTimeout(() => {
+                btn.textContent = 'Copy Cover Letter';
+            }, 2000);
+        });
+    }
+</script>
+</body>
+</html>
