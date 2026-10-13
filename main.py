@@ -1,9 +1,10 @@
 import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from agent import run_analysis
+from fastapi.responses import StreamingResponse
+from agent import run_analysis, run_analysis_stream
 import schemas
-import fitz
+import pymupdf
 import io
 
 logging.basicConfig(
@@ -49,7 +50,7 @@ async def analyze(
     # Extract text from PDF
     try:
         contents = await resume.read()
-        pdf = fitz.open(stream=contents, filetype="pdf")
+        pdf = pymupdf.open(stream=contents, filetype="pdf")
         resume_text = ""
         for page in pdf:
             resume_text += page.get_text()
@@ -81,3 +82,41 @@ async def analyze(
             status_code=503,
             detail="Analysis service temporarily unavailable"
         )
+
+@app.post("/analyze/stream")
+async def analyze_stream(
+    resume: UploadFile = File(..., description="Resume as PDF"),
+    job_description: str = Form(..., description="Job description text")
+):
+    if not resume.filename.endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Resume must be a PDF file"
+        )
+
+    try:
+        contents = await resume.read()
+        pdf = pymupdf.open(stream=contents, filetype="pdf")
+        resume_text = ""
+        for page in pdf:
+            resume_text += page.get_text()
+        pdf.close()
+
+        if len(resume_text.strip()) < 100:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not extract enough text from PDF"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"PDF extraction failed: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Failed to read PDF file"
+        )
+
+    return StreamingResponse(
+        run_analysis_stream(resume_text, job_description),
+        media_type="text/event-stream"
+    )

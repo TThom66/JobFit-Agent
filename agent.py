@@ -3,10 +3,66 @@ import json
 import anthropic
 import os
 from dotenv import load_dotenv
+from typing import Generator
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 client = anthropic.Anthropic()
+
+def run_analysis_stream(
+    resume: str, 
+    job_description: str
+) -> Generator[str, None, None]:
+    """Yields SSE formatted progress updates and final result."""
+    
+    def send_progress(message: str) -> str:
+        return f"data: {json.dumps({'type': 'progress', 'message': message})}\n\n"
+    
+    def send_result(data: dict) -> str:
+        return f"data: {json.dumps({'type': 'result', 'data': data})}\n\n"
+    
+    def send_error(message: str) -> str:
+        return f"data: {json.dumps({'type': 'error', 'message': message})}\n\n"
+
+    try:
+        yield send_progress("Analyzing job requirements...")
+        requirements_result = analyze_requirements(resume, job_description)
+        
+        yield send_progress("Extracting company name...")
+        company_name = extract_company_name(job_description)
+        
+        yield send_progress(f"Researching {company_name}...")
+        company_research = research_company(company_name)
+        
+        yield send_progress("Writing tailored cover letter...")
+        cover_letter = generate_cover_letter(
+            resume,
+            job_description,
+            company_research,
+            requirements_result
+        )
+        
+        yield send_progress("Generating resume suggestions...")
+        suggestions = generate_resume_suggestions(
+            resume,
+            job_description,
+            requirements_result
+        )
+        
+        result = {
+            "match_score": requirements_result["match_score"],
+            "matched_requirements": requirements_result["matched"],
+            "missing_requirements": requirements_result["missing"],
+            "company_research": company_research,
+            "cover_letter": cover_letter,
+            "resume_suggestions": suggestions
+        }
+        
+        yield send_result(result)
+        
+    except Exception as e:
+        logger.error(f"Analysis stream failed: {e}")
+        yield send_error("Analysis failed. Please try again.")
 
 def run_analysis(resume: str, job_description: str) -> dict:
     logger.info("Starting job fit analysis")
